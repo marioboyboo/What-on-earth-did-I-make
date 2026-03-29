@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Infinite Stickman</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+            overflow: hidden;
+            font-family: sans-serif;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        #container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .stickman {
+            position: absolute;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Drawing the stick figure with CSS */
+        .head {
+            width: 20px;
+            height: 20px;
+            border: 2px solid black;
+            border-radius: 50%;
+        }
+        .body-line {
+            width: 2px;
+            height: 30px;
+            background: black;
+        }
+        .arms {
+            width: 30px;
+            height: 2px;
+            background: black;
+            position: absolute;
+            top: 25px;
+        }
+        .legs {
+            display: flex;
+            gap: 10px;
+        }
+        .leg {
+            width: 2px;
+            height: 15px;
+            background: black;
+            transform: rotate(20deg);
+        }
+        .leg.right {
+            transform: rotate(-20deg);
+        }
+
+        /* Explosion Particles */
+        .particle {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background: black;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        @keyframes fallIn {
+            0% { transform: translateY(-500px) scale(0.5); }
+            60% { transform: translateY(20px) scale(0.5); }
+            100% { transform: translateY(0) scale(0.5); }
+        }
+
+        .baby-falling {
+            animation: fallIn 0.6s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <div id="stickman" class="stickman" style="transform: scale(1);">
+        <div class="head"></div>
+        <div class="arms"></div>
+        <div class="body-line"></div>
+        <div class="legs">
+            <div class="leg"></div>
+            <div class="leg right"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const container = document.getElementById('container');
+    const stickman = document.getElementById('stickman');
+    let scale = 1;
+
+    function createExplosion(x, y) {
+        for (let i = 0; i < 20; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            container.appendChild(particle);
+
+            const destX = (Math.random() - 0.5) * 400;
+            const destY = (Math.random() - 0.5) * 400;
+
+            particle.style.left = x + 'px';
+            particle.style.top = y + 'px';
+
+            const animation = particle.animate([
+                { transform: 'translate(0, 0)', opacity: 1 },
+                { transform: `translate(${destX}px, ${destY}px)`, opacity: 0 }
+            ], {
+                duration: 500,
+                easing: 'ease-out'
+            });
+
+            animation.onfinish = () => particle.remove();
+        }
+    }
+
+    function resetStickman() {
+        scale = 0.5; // Starts as a "baby"
+        stickman.style.display = 'flex';
+        stickman.style.transform = `scale(${scale})`;
+        stickman.classList.add('baby-falling');
+        
+        // Remove animation class after it finishes so we can scale normally
+        setTimeout(() => {
+            stickman.classList.remove('baby-falling');
+        }, 600);
+    }
+
+    window.addEventListener('click', (e) => {
+        if (stickman.classList.contains('baby-falling')) return;
+
+        scale += 0.5;
+        stickman.style.transform = `scale(${scale})`;
+
+        // Explosion threshold
+        if (scale >= 5) {
+            const rect = stickman.getBoundingClientRect();
+            createExplosion(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            
+            stickman.style.display = 'none';
+            
+            // Wait a moment before the baby falls in
+            setTimeout(resetStickman, 300);
+        }
+    });
+</script>
+
+</body>
+</html>
