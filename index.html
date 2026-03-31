@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Sprite Evolver</title>
+    <title>The Exploding Evolution</title>
     <style>
         body {
             margin: 0;
@@ -11,28 +11,40 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: #f0f0f0;
+            background-color: #1a1a1a; /* Darker background so the explosion pops */
             overflow: hidden;
             cursor: pointer;
             user-select: none;
+            color: white; /* and for easy text visibility if needed */
         }
 
         #character {
             position: absolute;
-            /* Adjust width/height or leave auto depending on your sprite sizes */
             max-width: 80vw;
             max-height: 80vh;
             transition: transform 0.1s ease-out;
             pointer-events: none; /* Clicks go to the body */
         }
 
+        /* Standard particle system, used alongside the sprite explosion */
         .particle {
             position: absolute;
             width: 8px;
             height: 8px;
-            background: #333;
-            border-radius: 2px;
+            background: #ffaa00; /* Firey colors */
+            border-radius: 50%;
             pointer-events: none;
+        }
+
+        /* The sprite explosion visual - make it flash and then fade */
+        .explosion-active {
+            filter: contrast(150%) brightness(120%);
+            animation: explodeFlash 0.3s ease-out forwards;
+        }
+
+        @keyframes explodeFlash {
+            0% { transform: scale(1); opacity: 1; filter: contrast(150%) brightness(200%); }
+            100% { transform: scale(2); opacity: 0; filter: contrast(150%) brightness(100%); }
         }
 
         @keyframes fallIn {
@@ -48,40 +60,45 @@
 </head>
 <body>
 
-    <img id="character" src="size1.png" alt="Stickman">
+    <img id="character" src="size1.png" alt="Stickman Character">
 
 <script>
     const charImg = document.getElementById('character');
     let currentSize = 1;
-    const maxSize = 9;
+    const maxSize = 8; // Max size *before* the explosion sequence
+    let isExploding = false;
 
-    // Preload images to prevent flickering
-    for (let i = 1; i <= maxSize; i++) {
-        const img = new Image();
-        img.src = `size${i}.png`;
+    // Preload all 9 images (1-8 are character, 9 is explosion)
+    const imagesToPreload = [];
+    for (let i = 1; i <= 9; i++) {
+        imagesToPreload[i] = new Image();
+        imagesToPreload[i].src = `size${i}.png`;
     }
 
-    function createExplosion(x, y) {
-        for (let i = 0; i < 30; i++) {
+    function createExplosionEffect(x, y) {
+        // Trigger the visual particles
+        for (let i = 0; i < 40; i++) {
             const particle = document.createElement('div');
             particle.className = 'particle';
             document.body.appendChild(particle);
 
             const angle = Math.random() * Math.PI * 2;
-            const velocity = 5 + Math.random() * 10;
-            const destX = Math.cos(angle) * velocity * 20;
-            const destY = Math.sin(angle) * velocity * 20;
+            const velocity = 8 + Math.random() * 15;
+            const destX = Math.cos(angle) * velocity * 25;
+            const destY = Math.sin(angle) * velocity * 25;
 
             particle.style.left = x + 'px';
             particle.style.top = y + 'px';
-            // Randomize particle color for variety
-            particle.style.backgroundColor = Math.random() > 0.5 ? '#000' : '#555';
+            
+            // Random fire/smoke colors
+            const colorChoices = ['#ff4400', '#ffaa00', '#ffffff', '#555555'];
+            particle.style.backgroundColor = colorChoices[Math.floor(Math.random() * colorChoices.length)];
 
             const animation = particle.animate([
-                { transform: 'translate(0, 0) rotate(0deg)', opacity: 1 },
-                { transform: `translate(${destX}px, ${destY}px) rotate(360deg)`, opacity: 0 }
+                { transform: 'translate(0, 0) rotate(0deg) scale(1)', opacity: 1 },
+                { transform: `translate(${destX}px, ${destY}px) rotate(360deg) scale(0.5)`, opacity: 0 }
             ], {
-                duration: 600,
+                duration: 700,
                 easing: 'ease-out'
             });
 
@@ -91,6 +108,7 @@
 
     function spawnBaby() {
         currentSize = 1;
+        isExploding = false;
         charImg.src = `size1.png`;
         charImg.style.display = 'block';
         charImg.classList.add('baby-falling');
@@ -101,26 +119,43 @@
     }
 
     window.addEventListener('click', (e) => {
-        // Prevent clicking during the "new baby" animation
-        if (charImg.classList.contains('baby-falling')) return;
+        // Prevent clicking during the "new baby" or "explosion" animation
+        if (charImg.classList.contains('baby-falling') || isExploding) return;
 
         if (currentSize < maxSize) {
+            // Normal growth logic (1 through 8)
             currentSize++;
             charImg.src = `size${currentSize}.png`;
             
-            // Adding a little "jiggle" on growth
+            // Subtle "jiggle" feedback on growth
             charImg.style.transform = 'scale(1.1)';
             setTimeout(() => charImg.style.transform = 'scale(1)', 100);
             
         } else {
-            // EXPLODE!
+            // At maxSize (size8), the next click EXPLODES!
+            isExploding = true;
+            
+            // --- The Sequence ---
+            
+            // 1. Swap the image to the explosion sprite immediately
+            charImg.src = `size9.png`; 
+
+            // 2. Center the explosion effect (since size9 might have different dimensions)
+            // It uses the character's bounding box as the origin.
             const rect = charImg.getBoundingClientRect();
-            createExplosion(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            createExplosionEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
             
-            charImg.style.display = 'none';
-            
-            // Wait slightly before the new baby falls in
-            setTimeout(spawnBaby, 400);
+            // 3. Apply the CSS flash animation to size9.png
+            charImg.classList.add('explosion-active');
+
+            // 4. Hide size9.png AFTER its animation finishes, then reset
+            setTimeout(() => {
+                charImg.style.display = 'none';
+                charImg.classList.remove('explosion-active');
+                
+                // 5. Wait slightly before the new baby falls in
+                setTimeout(spawnBaby, 300);
+            }, 300); // This duration (300ms) matches the `explodeFlash` CSS animation duration.
         }
     });
 </script>
